@@ -3,7 +3,6 @@ package notification
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"fibo-monitor/config"
 	"fibo-monitor/indicator"
