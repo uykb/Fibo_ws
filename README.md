@@ -253,10 +253,7 @@ version: '3.8'
 
 services:
   fibo-monitor:
-    image: fibo-monitor:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/uykb/fibo_ws:latest # 推荐使用 GHCR 镜像
     container_name: fibo-monitor
     restart: unless-stopped
     ports:
@@ -266,13 +263,13 @@ services:
       - ./config:/app/config:ro
       - ./logs:/app/logs
     environment:
-      # Binance 配置（可覆盖配置文件）
+      # Binance 配置
       - FIBO_BINANCE_WEBSOCKET_URL=wss://fstream.binance.com/ws
       - FIBO_BINANCE_RECONNECT_INTERVAL=5s
-      # 飞书 Webhook 配置
+      # 飞书 Webhook 配置 (推荐使用环境变量覆盖配置文件)
       - FIBO_WEBHOOK_LARK_ENABLED=true
-      - FIBO_WEBHOOK_LARK_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/your_token
-      - FIBO_WEBHOOK_LARK_SECRET=your_secret_if_any
+      - FIBO_WEBHOOK_LARK_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      - FIBO_WEBHOOK_LARK_SECRET=  # 如果开启了签名校验，请填写密钥
       # 监控配置
       - FIBO_MONITORING_LOG_LEVEL=info
       - FIBO_MONITORING_PROMETHEUS_ENABLED=true
@@ -282,48 +279,41 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 ```
 
-### Kubernetes 部署
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fibo-monitor
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: fibo-monitor
-  template:
-    metadata:
-      labels:
-        app: fibo-monitor
-    spec:
-      containers:
-      - name: fibo-monitor
-        image: fibo-monitor:latest
-        ports:
-        - containerPort: 8080
-        - containerPort: 9090
-        volumeMounts:
-        - name: config
-          mountPath: /app/config
-        env:
-        - name: FIBO_WEBHOOK_URL
-          valueFrom:
-            secretKeyRef:
-              name: fibo-secrets
-              key: webhook-url
-      volumes:
-      - name: config
-        configMap:
-          name: fibo-config
+## 飞书 (Lark) 集成指南
+
+本系统原生支持飞书群机器人的 Webhook 推送，并支持富媒体消息卡片。
+
+### 1. 获取 Webhook 地址
+1.  在飞书群组中，点击右上角设置 -> 群机器人 -> 添加机器人 -> 自定义机器人。
+2.  添加后，您将获得一个 Webhook 地址，格式如下：
+    `https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+3.  (可选) 在安全设置中，您可以勾选 "签名校验"，并获取 **签名密钥 (Secret)**。
+
+### 2. 配置环境变量
+为了安全起见，建议通过环境变量配置 Webhook 地址和密钥，而不是直接写入配置文件。
+
+| 环境变量名称 | 描述 | 示例值 |
+| :--- | :--- | :--- |
+| `FIBO_WEBHOOK_LARK_ENABLED` | 是否启用飞书推送 | `true` |
+| `FIBO_WEBHOOK_LARK_WEBHOOK_URL` | 飞书机器人的 Webhook 地址 | `https://open.feishu.cn/...` |
+| `FIBO_WEBHOOK_LARK_SECRET` | (可选) 签名密钥 | `your_secret_string` |
+
+### 3. 测试运行
+配置完成后，您可以直接启动 Docker 容器：
+
+```bash
+docker run -d \
+  -e FIBO_WEBHOOK_LARK_ENABLED=true \
+  -e FIBO_WEBHOOK_LARK_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/您的Token" \
+  --name fibo-monitor \
+  ghcr.io/uykb/fibo_ws:latest
 ```
 
 ## 故障排除
