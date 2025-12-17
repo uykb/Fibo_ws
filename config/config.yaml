@@ -26,19 +26,14 @@ signal:
   deduplication_window: "10m"  # 信号去重时间窗口
   min_volume: 1000.0           # 最小交易量过滤（可选）
 
-# Webhook 配置
+# 飞书 (Lark) Webhook 配置
 webhook:
   enabled: true
-  url: "https://your-webhook-endpoint.com"
+  url: "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  secret: "" # 可选
   timeout: "10s"
   retry_count: 3
   retry_backoff: "1s"
-  # 飞书 Webhook 配置示例
-  lark:
-    enabled: false
-    webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/{your_token}"
-    secret: ""  # 可选，签名密钥
-    msg_type: "interactive"  # 交互式消息卡片
 
 # 消息卡片模板
 message_card:
@@ -59,7 +54,5 @@ message_card:
 
 # 监控配置
 monitoring:
-  prometheus_enabled: true
-  prometheus_port: 9090
   healthcheck_port: 8080
   log_level: "info"

@@ -37,17 +37,10 @@ type SignalConfig struct {
 type WebhookConfig struct {
 	Enabled      bool          `mapstructure:"enabled"`
 	URL          string        `mapstructure:"url"`
+	Secret       string        `mapstructure:"secret"`
 	Timeout      time.Duration `mapstructure:"timeout"`
 	RetryCount   int           `mapstructure:"retry_count"`
 	RetryBackoff time.Duration `mapstructure:"retry_backoff"`
-	Lark         LarkConfig    `mapstructure:"lark"`
-}
-
-type LarkConfig struct {
-	Enabled    bool   `mapstructure:"enabled"`
-	WebhookURL string `mapstructure:"webhook_url"`
-	Secret     string `mapstructure:"secret"`
-	MsgType    string `mapstructure:"msg_type"`
 }
 
 type MessageCardConfig struct {
@@ -72,8 +65,6 @@ type ButtonConfig struct {
 }
 
 type MonitoringConfig struct {
-	PrometheusEnabled bool   `mapstructure:"prometheus_enabled"`
-	PrometheusPort    int    `mapstructure:"prometheus_port"`
 	HealthcheckPort   int    `mapstructure:"healthcheck_port"`
 	LogLevel          string `mapstructure:"log_level"`
 }
@@ -91,6 +82,11 @@ func LoadConfig(path string) (*Config, error) {
 	var config Config
 	if err := viper.Unmarshal(&config); err != nil {
 		return nil, err
+	}
+
+	// Set default values if not present
+	if config.Webhook.Timeout == 0 {
+		config.Webhook.Timeout = 10 * time.Second
 	}
 
 	return &config, nil

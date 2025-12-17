@@ -29,7 +29,7 @@ func main() {
 
 	logger.Info("Starting Fibo Monitor...")
 
-	// 3. Init Monitor
+	// 3. Init Monitor (Healthcheck only)
 	monServer := monitor.NewServer(cfg.Monitoring, logger)
 	monServer.Start()
 
@@ -72,28 +72,14 @@ func main() {
 	}
 
 	// 6. Data Pipeline
-	// WS -> MsgChan
 	msgChan := wsClient.Messages()
-
-	// MsgChan -> Processor -> KlineChan
 	klineChan := processor.Process(msgChan)
-
-	// KlineChan -> Detector -> RawSignalChan
-	// We need to tap into klineChan to update metrics? 
-	// Or Detector updates metrics? 
-	// Ideally Detector updates metrics or we wrap the channel.
-	// For simplicity, let's update metrics in the loop or in components.
-	// Let's assume components handle their logic.
-	
 	rawSignalChan := detector.Detect(klineChan)
-
-	// RawSignalChan -> Filter -> FilteredSignalChan
 	filteredSignalChan := sigFilter.Run(rawSignalChan)
 
 	// FilteredSignalChan -> Webhook
 	go func() {
 		for sig := range filteredSignalChan {
-			monitor.SignalsDetectedTotal.WithLabelValues(sig.Symbol, sig.Interval, sig.String()).Inc()
 			logger.Info("Signal Detected", 
 				zap.String("symbol", sig.Symbol),
 				zap.String("interval", sig.Interval),

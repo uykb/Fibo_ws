@@ -65,14 +65,13 @@
 │   ├── webhook.go      # Webhook 发送器
 │   └── messagecard.go  # 消息卡片生成
 ├── monitor/            # 系统监控
-│   ├── metrics.go      # Prometheus 指标
 │   └── healthcheck.go  # 健康检查
 └── cmd/                # 应用程序入口
 ```
 
 ### 数据流设计
 ```
-Binance WebSocket → K线数据解析 → 指标计算引擎 → 信号检测器 → 信号过滤器 → 消息生成器 → Webhook 推送
+Binance WebSocket → K线数据解析 → 指标计算引擎 → 信号检测器 → 信号过滤器 → 消息生成器 → 飞书 Webhook 推送
 ```
 
 ## 技术选型
@@ -81,16 +80,9 @@ Binance WebSocket → K线数据解析 → 指标计算引擎 → 信号检测�
 - **Go 1.21+**：高性能、高并发、低内存占用，适合实时系统
 
 ### 核心依赖
-- **WebSocket 客户端**：`gorilla/websocket` 或自定义实现
-- **配置管理**：`spf13/viper`（支持 YAML、JSON、环境变量）
-- **HTTP 客户端**：标准库 `net/http` 或 `valyala/fasthttp`（高性能）
-- **日志系统**：`uber-go/zap`（结构化日志）
-- **指标监控**：`prometheus/client_golang`（性能指标暴露）
-
-### 部署环境
-- **操作系统**：Linux/Windows/macOS
-- **容器化**：Docker 支持
-- **进程管理**：Systemd 或 Kubernetes
+- **WebSocket 客户端**：`gorilla/websocket`
+- **配置管理**：`spf13/viper`
+- **日志系统**：`uber-go/zap`
 
 ## 配置说明
 
@@ -124,19 +116,14 @@ signal:
   deduplication_window: "10m"  # 信号去重时间窗口
   min_volume: 1000.0           # 最小交易量过滤（可选）
 
-# Webhook 配置
+# 飞书 (Lark) Webhook 配置
 webhook:
   enabled: true
-  url: "https://your-webhook-endpoint.com"
+  url: "https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  secret: "" # 可选，签名密钥
   timeout: "10s"
   retry_count: 3
   retry_backoff: "1s"
-  # 飞书 Webhook 配置示例
-  lark:
-    enabled: false
-    webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/{your_token}"
-    secret: ""  # 可选，签名密钥
-    msg_type: "interactive"  # 交互式消息卡片
 
 # 消息卡片模板
 message_card:
@@ -151,79 +138,33 @@ message_card:
     at_users: []   # 要 @ 的用户ID列表
     buttons:
       - text: "查看详情"
-        url: "https://binance.com/zh-CN/futures/{symbol}"
+        url: "https://www.binance.com/zh-CN/futures/{symbol}"
       - text: "忽略信号"
         action: "ignore"
 
 # 监控配置
 monitoring:
-  prometheus_enabled: true
-  prometheus_port: 9090
   healthcheck_port: 8080
   log_level: "info"
 ```
 
 ### 环境变量覆盖
 所有配置项均支持环境变量覆盖，格式：`FIBO_<SECTION>_<KEY>`，例如：
-- `FIBO_BINANCE_WEBSOCKET_URL`
-- `FIBO_WEBHOOK_URL`
-- `FIBO_MONITORING_LOG_LEVEL`
-
-## 性能指标
-
-系统暴露以下 Prometheus 指标：
-- `fibo_websocket_connections`：WebSocket 连接状态
-- `fibo_kline_received_total`：接收的 K 线数量
-- `fibo_ema_calculated_total`：EMA 计算次数
-- `fibo_signals_detected_total`：检测到的信号数量
-- `fibo_webhook_sent_total`：Webhook 发送次数
-- `fibo_webhook_errors_total`：Webhook 错误次数
-- `fibo_processing_latency_seconds`：处理延迟直方图
+- `FIBO_WEBHOOK_URL` (飞书 Webhook 地址)
+- `FIBO_WEBHOOK_SECRET`
 
 ## 部署与运行
-
-### 本地运行
-```bash
-# 克隆项目
-git clone <repository-url>
-cd Fibo_ws
-
-# 安装依赖
-go mod download
-
-# 编辑配置文件
-cp config/config.example.yaml config/config.yaml
-# 修改 config.yaml 中的 Webhook URL 等配置
-
-# 构建
-go build -o fibo-monitor ./cmd
-
-# 运行
-./fibo-monitor
-```
 
 ### Docker 运行
 ```bash
 # 构建镜像
 docker build -t fibo-monitor .
 
-# 运行容器（基础配置）
+# 运行容器
 docker run -d \
-  -v $(pwd)/config:/app/config \
+  -e FIBO_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/{your_token}" \
   -p 8080:8080 \
-  -p 9090:9090 \
   --name fibo-monitor \
-  fibo-monitor
-
-# 运行容器（带飞书环境变量配置）
-docker run -d \
-  -v $(pwd)/config:/app/config \
-  -e FIBO_WEBHOOK_LARK_ENABLED=true \
-  -e FIBO_WEBHOOK_LARK_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/{your_token}" \
-  -e FIBO_WEBHOOK_LARK_SECRET="your_secret" \
-  -p 8080:8080 \
-  -p 9090:9090 \
-  --name fibo-monitor-lark \
   fibo-monitor
 
 ### 使用 GitHub Container Registry (GHCR) 直接运行
@@ -236,9 +177,8 @@ docker pull ghcr.io/<username>/<repo>:latest
 
 # 2. 运行容器
 docker run -d \
-  -v $(pwd)/config:/app/config \
+  -e FIBO_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/{your_token}" \
   -p 8080:8080 \
-  -p 9090:9090 \
   --name fibo-monitor \
   ghcr.io/<username>/<repo>:latest
 ```
@@ -258,21 +198,18 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"   # 健康检查端口
-      - "9090:9090"   # Prometheus 指标端口
     volumes:
       - ./config:/app/config:ro
       - ./logs:/app/logs
     environment:
       # Binance 配置
       - FIBO_BINANCE_WEBSOCKET_URL=wss://fstream.binance.com/ws
-      - FIBO_BINANCE_RECONNECT_INTERVAL=5s
       # 飞书 Webhook 配置 (推荐使用环境变量覆盖配置文件)
-      - FIBO_WEBHOOK_LARK_ENABLED=true
-      - FIBO_WEBHOOK_LARK_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-      - FIBO_WEBHOOK_LARK_SECRET=  # 如果开启了签名校验，请填写密钥
+      - FIBO_WEBHOOK_ENABLED=true
+      - FIBO_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      - FIBO_WEBHOOK_SECRET=  # 如果开启了签名校验，请填写密钥
       # 监控配置
       - FIBO_MONITORING_LOG_LEVEL=info
-      - FIBO_MONITORING_PROMETHEUS_ENABLED=true
     logging:
       driver: "json-file"
       options:
@@ -301,22 +238,47 @@ services:
 
 | 环境变量名称 | 描述 | 示例值 |
 | :--- | :--- | :--- |
-| `FIBO_WEBHOOK_LARK_ENABLED` | 是否启用飞书推送 | `true` |
-| `FIBO_WEBHOOK_LARK_WEBHOOK_URL` | 飞书机器人的 Webhook 地址 | `https://open.feishu.cn/...` |
-| `FIBO_WEBHOOK_LARK_SECRET` | (可选) 签名密钥 | `your_secret_string` |
+| `FIBO_WEBHOOK_ENABLED` | 是否启用推送 | `true` |
+| `FIBO_WEBHOOK_URL` | 飞书机器人的 Webhook 地址 | `https://open.feishu.cn/...` |
+| `FIBO_WEBHOOK_SECRET` | (可选) 签名密钥 | `your_secret_string` |
 
 ### 3. 测试运行
 配置完成后，您可以直接启动 Docker 容器：
 
 ```bash
 docker run -d \
-  -e FIBO_WEBHOOK_LARK_ENABLED=true \
-  -e FIBO_WEBHOOK_LARK_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/您的Token" \
+  -e FIBO_WEBHOOK_URL="https://open.feishu.cn/open-apis/bot/v2/hook/您的Token" \
   --name fibo-monitor \
   ghcr.io/uykb/fibo_ws:latest
 ```
 
 ## 故障排除
+
+### 常见问题
+1. **WebSocket 连接断开**
+   - 检查网络连接和防火墙设置
+   - 确认 Binance API 状态
+   - 查看日志中的重连记录
+
+2. **Webhook 发送失败**
+   - 验证 Webhook URL 是否正确
+   - 检查目标服务是否可访问
+   - 查看重试日志
+
+3. **信号未触发**
+   - 确认 EMA 参数设置
+   - 检查收盘价条件是否满足
+   - 验证去重窗口设置
+
+### 日志查看
+```bash
+# 查看实时日志
+tail -f logs/fibo-monitor.log
+
+# 按级别过滤
+grep "ERROR" logs/fibo-monitor.log
+grep "SIGNAL" logs/fibo-monitor.log
+```
 
 ### 常见问题
 1. **WebSocket 连接断开**
