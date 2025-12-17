@@ -1,7 +1,6 @@
 package signal
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
