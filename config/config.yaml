@@ -1,0 +1,65 @@
+# Binance 配置
+binance:
+  websocket_url: "wss://fstream.binance.com/ws"
+  reconnect_interval: 5s
+  ping_interval: 30s
+
+# 交易对配置
+symbols:
+  - "btcusdt"
+  - "ethusdt"
+
+# 时间周期配置
+intervals:
+  - "5m"
+  - "15m"
+  - "1h"
+  - "4h"
+
+# EMA 参数
+indicators:
+  ema_short_period: 12
+  ema_long_period: 144
+
+# 信号过滤
+signal:
+  deduplication_window: "10m"  # 信号去重时间窗口
+  min_volume: 1000.0           # 最小交易量过滤（可选）
+
+# Webhook 配置
+webhook:
+  enabled: true
+  url: "https://your-webhook-endpoint.com"
+  timeout: "10s"
+  retry_count: 3
+  retry_backoff: "1s"
+  # 飞书 Webhook 配置示例
+  lark:
+    enabled: false
+    webhook_url: "https://open.feishu.cn/open-apis/bot/v2/hook/{your_token}"
+    secret: ""  # 可选，签名密钥
+    msg_type: "interactive"  # 交互式消息卡片
+
+# 消息卡片模板
+message_card:
+  title: "🎯 交易信号警报"
+  theme_color: "0078D7"
+  include_price: true
+  include_ema_values: true
+  include_timestamp: true
+  # 飞书特定配置
+  lark_specific:
+    at_all: false  # 是否 @ 所有人
+    at_users: []   # 要 @ 的用户ID列表
+    buttons:
+      - text: "查看详情"
+        url: "https://www.binance.com/zh-CN/futures/{symbol}"
+      - text: "忽略信号"
+        action: "ignore"
+
+# 监控配置
+monitoring:
+  prometheus_enabled: true
+  prometheus_port: 9090
+  healthcheck_port: 8080
+  log_level: "info"

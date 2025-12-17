@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  fibo-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fibo-monitor
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # Health check
+      - "9090:9090"   # Prometheus metrics
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    environment:
+      - FIBO_MONITORING_LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
