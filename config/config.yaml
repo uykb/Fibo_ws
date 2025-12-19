@@ -46,11 +46,7 @@ message_card:
   lark_specific:
     at_all: false  # 是否 @ 所有人
     at_users: []   # 要 @ 的用户ID列表
-    buttons:
-      - text: "查看详情"
-        url: "https://www.binance.com/zh-CN/futures/{symbol}"
-      - text: "忽略信号"
-        action: "ignore"
+
 
 # 监控配置
 monitoring:
